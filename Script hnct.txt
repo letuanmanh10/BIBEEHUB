@@ -1,0 +1,69 @@
+--// Safe Load Fluent UI
+local url = "https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"
+local Library
+local success, result = pcall(function()
+    return loadstring(game:HttpGet(url))()
+end)
+
+if success and result then
+    Library = result
+else
+    warn("❌ Không thể load Fluent UI library. Kiểm tra lại mạng hoặc link.")
+    return
+end
+
+--// Tạo Window
+local MainWindow = Library:CreateWindow({
+    Title = "BIBEE |",
+    SubTitle = "tiktok:_ivaa_ltnmh21",
+    TabWidth = 120,
+    Size = UDim2.fromOffset(520, 300),
+    Acrylic = true,
+    Theme = "Black",
+    MinimizeKey = Enum.KeyCode.RightControl
+})
+
+--// Tab
+local Tabs = {}
+Tabs.main = MainWindow:AddTab({ Title = "Game" })
+
+--// Anti AFK
+local Players = game:GetService("Players")
+local VirtualUser = game:GetService("VirtualUser")
+local player = Players.LocalPlayer
+
+local connection = nil
+
+Tabs.main:AddToggle("AntiAFK_Toggle", {
+    Title = "Anti AFK",
+    Default = false,
+    Callback = function(state)
+        if state then
+            -- Bật
+            connection = player.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                task.wait(1)
+                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            end)
+
+            Library:Notify({
+                Title = "Anti AFK",
+                Content = "✅ Anti-AFK đã được bật!",
+                Duration = 4
+            })
+
+        else
+            -- Tắt
+            if connection then
+                connection:Disconnect()
+                connection = nil
+            end
+
+            Library:Notify({
+                Title = "Anti AFK",
+                Content = "❌ Anti-AFK đã tắt.",
+                Duration = 4
+            })
+        end
+    end
+})
