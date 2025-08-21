@@ -23,24 +23,27 @@ local MainWindow = Library:CreateWindow({
     MinimizeKey = Enum.KeyCode.RightControl
 })
 
---// Tab
+--// Tabs
 local Tabs = {}
 Tabs.main = MainWindow:AddTab({ Title = "Game" })
 
---// Anti AFK
+--// Services
 local Players = game:GetService("Players")
 local VirtualUser = game:GetService("VirtualUser")
+local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
-local connection = nil
+--========================
+-- Anti AFK
+--========================
+local afkConnection = nil
 
 Tabs.main:AddToggle("AntiAFK_Toggle", {
     Title = "Anti AFK",
     Default = false,
     Callback = function(state)
         if state then
-            -- Bật
-            connection = player.Idled:Connect(function()
+            afkConnection = player.Idled:Connect(function()
                 VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
                 task.wait(1)
                 VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
@@ -51,12 +54,10 @@ Tabs.main:AddToggle("AntiAFK_Toggle", {
                 Content = "✅ Anti-AFK đã được bật!",
                 Duration = 4
             })
-
         else
-            -- Tắt
-            if connection then
-                connection:Disconnect()
-                connection = nil
+            if afkConnection then
+                afkConnection:Disconnect()
+                afkConnection = nil
             end
 
             Library:Notify({
@@ -66,5 +67,39 @@ Tabs.main:AddToggle("AntiAFK_Toggle", {
             })
         end
     end
+})
 
+--========================
+-- Auto Click
+--========================
+local autoClickEnabled = false
+
+Tabs.main:AddToggle("AutoClick_Toggle", {
+    Title = "Auto Click (chuột trái)",
+    Default = false,
+    Callback = function(state)
+        autoClickEnabled = state
+        if state then
+            Library:Notify({
+                Title = "Auto Click",
+                Content = "✅ Auto Click đã bật! Giữ chuột trái để bắn/đánh.",
+                Duration = 4
+            })
+            -- Loop click
+            task.spawn(function()
+                while autoClickEnabled do
+                    task.wait(0.1) -- tốc độ click (0.1s = 10 CPS)
+                    VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                    task.wait()
+                    VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+                end
+            end)
+        else
+            Library:Notify({
+                Title = "Auto Click",
+                Content = "❌ Auto Click đã tắt.",
+                Duration = 4
+            })
+        end
+    end
 })
