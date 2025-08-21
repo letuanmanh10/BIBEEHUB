@@ -66,4 +66,5 @@ Tabs.main:AddToggle("AntiAFK_Toggle", {
             })
         end
     end
+
 })
