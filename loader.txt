@@ -1,18 +1,10 @@
---// Safe Load Fluent UI
+--// Load Fluent UI
 local url = "https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"
 local Library
-local success, result = pcall(function()
-    return loadstring(game:HttpGet(url))()
-end)
+local ok, res = pcall(function() return loadstring(game:HttpGet(url))() end)
+if ok and res then Library = res else warn("❌ Không thể load Fluent UI."); return end
 
-if success and result then
-    Library = result
-else
-    warn("❌ Không thể load Fluent UI library. Kiểm tra lại mạng hoặc link.")
-    return
-end
-
---// Tạo Window
+--// Window
 local MainWindow = Library:CreateWindow({
     Title = "BIBEE |",
     SubTitle = "tiktok:_ivaa_ltnmh21",
@@ -20,86 +12,273 @@ local MainWindow = Library:CreateWindow({
     Size = UDim2.fromOffset(520, 300),
     Acrylic = true,
     Theme = "Black",
-    MinimizeKey = Enum.KeyCode.RightControl
+    MinimizeKey = Enum.KeyCode.F6
 })
 
---// Tabs
 local Tabs = {}
 Tabs.main = MainWindow:AddTab({ Title = "Game" })
+Tabs.teleport = MainWindow:AddTab({ Title = "Teleport" })
+Tabs.esp = MainWindow:AddTab({ Title = "ESP" })
 
 --// Services
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local VirtualUser = game:GetService("VirtualUser")
-local UserInputService = game:GetService("UserInputService")
 local player = Players.LocalPlayer
 
---========================
--- Anti AFK
---========================
-local afkConnection = nil
+--==================================================
+-- Anti-AFK & Auto Click
+--==================================================
+local afkEnabled, autoClickEnabled = false, false
+local cps = 10
+
+local function antiAfkAction()
+    VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+end
+
+local function autoClickAction()
+    VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+    task.wait()
+    VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+end
 
 Tabs.main:AddToggle("AntiAFK_Toggle", {
     Title = "Anti AFK",
     Default = false,
     Callback = function(state)
+        afkEnabled = state
         if state then
-            afkConnection = player.Idled:Connect(function()
-                VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                task.wait(1)
-                VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            player.Idled:Connect(function()
+                if afkEnabled then antiAfkAction() print("✅ Anti-AFK kích hoạt do Idle.") end
             end)
-
-            Library:Notify({
-                Title = "Anti AFK",
-                Content = "✅ Anti-AFK đã được bật!",
-                Duration = 4
-            })
+            Library:Notify({ Title = "Anti AFK", Content = "✅ Đã bật chống AFK.", Duration = 4 })
         else
-            if afkConnection then
-                afkConnection:Disconnect()
-                afkConnection = nil
-            end
-
-            Library:Notify({
-                Title = "Anti AFK",
-                Content = "❌ Anti-AFK đã tắt.",
-                Duration = 4
-            })
+            Library:Notify({ Title = "Anti AFK", Content = "❌ Anti-AFK đã tắt.", Duration = 4 })
         end
     end
 })
 
---========================
--- Auto Click
---========================
-local autoClickEnabled = false
+Tabs.main:AddSlider("AutoClick_Speed", {
+    Title = "Auto Click Speed (CPS)",
+    Description = "Chọn số click/giây",
+    Default = 10,
+    Min = 1,
+    Max = 20,
+    Rounding = 0,
+    Callback = function(value) cps = value end
+})
 
 Tabs.main:AddToggle("AutoClick_Toggle", {
     Title = "Auto Click (chuột trái)",
     Default = false,
     Callback = function(state)
         autoClickEnabled = state
+        Library:Notify({
+            Title = "Auto Click",
+            Content = state and "✅ Auto Click đã bật ("..cps.." CPS)" or "❌ Auto Click đã tắt.",
+            Duration = 4
+        })
+    end
+})
+
+task.spawn(function()
+    while true do
+        if afkEnabled then
+            task.wait(1170)
+            antiAfkAction()
+            print("🔁 Anti-AFK tự động sau 19.5 phút.")
+        else
+            task.wait(1)
+        end
+
+        if autoClickEnabled then
+            task.wait(1 / cps)
+            autoClickAction()
+        end
+    end
+end)
+
+--==================================================
+-- Speed Hack
+--==================================================
+local speedEnabled = false
+local speedValue = 32
+local defaultSpeed = 16
+local rsConn, charConn
+
+local function getHumanoid()
+    local char = player.Character
+    if not char then return nil end
+    return char:FindFirstChildOfClass("Humanoid")
+end
+
+local function startSpeedLoop()
+    if rsConn then rsConn:Disconnect() rsConn = nil end
+    rsConn = RunService.RenderStepped:Connect(function()
+        if speedEnabled then
+            local hum = getHumanoid()
+            if hum and hum.WalkSpeed ~= speedValue then
+                hum.WalkSpeed = speedValue
+            end
+        end
+    end)
+end
+
+local function stopSpeedLoop()
+    if rsConn then rsConn:Disconnect() rsConn = nil end
+end
+
+Tabs.main:AddSlider("SpeedSlider", {
+    Title = "Tốc độ chạy",
+    Default = speedValue, Min = 16, Max = 200, Rounding = 0,
+    Callback = function(v)
+        speedValue = v
+    end
+})
+
+Tabs.main:AddToggle("Speed_Toggle", {
+    Title = "Bật Speed Hack",
+    Default = false,
+    Callback = function(state)
+        speedEnabled = state
         if state then
-            Library:Notify({
-                Title = "Auto Click",
-                Content = "✅ Auto Click đã bật! Giữ chuột trái để bắn/đánh.",
-                Duration = 4
-            })
-            -- Loop click
-            task.spawn(function()
-                while autoClickEnabled do
-                    task.wait(0.1) -- tốc độ click (0.1s = 10 CPS)
-                    VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-                    task.wait()
-                    VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
+            if charConn then charConn:Disconnect() charConn = nil end
+            charConn = player.CharacterAdded:Connect(function(char)
+                local hum = char:WaitForChild("Humanoid", 10)
+                if hum and speedEnabled then hum.WalkSpeed = speedValue end
+            end)
+            startSpeedLoop()
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = speedValue end
+            Library:Notify({ Title = "Speed Hack", Content = "✅ Đã bật ("..speedValue.." WalkSpeed).", Duration = 4 })
+        else
+            stopSpeedLoop()
+            if charConn then charConn:Disconnect() charConn = nil end
+            local hum = getHumanoid()
+            if hum then hum.WalkSpeed = defaultSpeed end
+            Library:Notify({ Title = "Speed Hack", Content = "❌ Đã tắt (trả về "..defaultSpeed..").", Duration = 4 })
+        end
+    end
+})
+
+--==================================================
+-- Teleport Tab
+--==================================================
+local selectedPlayer
+
+local function getPlayerList()
+    local list = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= player then table.insert(list, p.Name) end
+    end
+    return list
+end
+
+local playerDropdown = Tabs.teleport:AddDropdown("PlayerList", {
+    Title = "Chọn Player để Teleport",
+    Values = getPlayerList(),
+    Multi = false,
+    Default = nil,
+    Callback = function(value) selectedPlayer = value end
+})
+
+Tabs.teleport:AddButton({
+    Title = "Teleport tới Player",
+    Description = "Dịch chuyển đến vị trí player đã chọn",
+    Callback = function()
+        if selectedPlayer then
+            local target = Players:FindFirstChild(selectedPlayer)
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                player.Character:MoveTo(target.Character.HumanoidRootPart.Position + Vector3.new(0,3,0))
+                Library:Notify({ Title = "Teleport", Content = "✅ Đã dịch chuyển tới "..selectedPlayer, Duration = 4 })
+            else
+                Library:Notify({ Title = "Teleport", Content = "⚠️ Không tìm thấy nhân vật của "..selectedPlayer, Duration = 4 })
+            end
+        else
+            Library:Notify({ Title = "Teleport", Content = "⚠️ Bạn chưa chọn Player!", Duration = 4 })
+        end
+    end
+})
+
+Players.PlayerAdded:Connect(function() playerDropdown:SetValues(getPlayerList()) end)
+Players.PlayerRemoving:Connect(function() playerDropdown:SetValues(getPlayerList()) end)
+
+--==================================================
+-- ESP Tab
+--==================================================
+local espEnabled = false
+local espBoxes = {}
+
+local function removeESP(player)
+    if espBoxes[player] then
+        espBoxes[player]:Destroy()
+        espBoxes[player] = nil
+    end
+end
+
+local function createESP(player)
+    removeESP(player)
+    local char = player.Character
+    if not char then return end
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESPBox"
+    billboard.Adornee = root
+    billboard.Size = UDim2.new(0,100,0,40)
+    billboard.AlwaysOnTop = true
+
+    local label = Instance.new("TextLabel")
+    label.Text = player.Name
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1,0,0)
+    label.TextScaled = true
+    label.Parent = billboard
+
+    billboard.Parent = game:GetService("CoreGui")
+    espBoxes[player] = billboard
+end
+
+local function setupESPForPlayer(player)
+    player.CharacterAdded:Connect(function()
+        if espEnabled then
+            task.wait(0.1)
+            createESP(player)
+        end
+    end)
+end
+
+Tabs.esp:AddToggle("ESP_Toggle", {
+    Title = "Bật ESP",
+    Default = false,
+    Callback = function(state)
+        espEnabled = state
+        if state then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player then
+                    createESP(p)
+                    setupESPForPlayer(p)
+                end
+            end
+            Players.PlayerAdded:Connect(function(p)
+                if p ~= player then
+                    createESP(p)
+                    setupESPForPlayer(p)
                 end
             end)
+            Players.PlayerRemoving:Connect(function(p)
+                removeESP(p)
+            end)
+            Library:Notify({ Title = "ESP", Content = "✅ ESP đã bật", Duration = 4 })
         else
-            Library:Notify({
-                Title = "Auto Click",
-                Content = "❌ Auto Click đã tắt.",
-                Duration = 4
-            })
+            for _, p in pairs(Players:GetPlayers()) do
+                removeESP(p)
+            end
+            Library:Notify({ Title = "ESP", Content = "❌ ESP đã tắt", Duration = 4 })
         end
     end
 })
