@@ -27,21 +27,14 @@ local VirtualUser = game:GetService("VirtualUser")
 local player = Players.LocalPlayer
 
 --==================================================
--- Anti-AFK & Auto Click
+-- Anti-AFK
 --==================================================
-local afkEnabled, autoClickEnabled = false, false
-local cps = 10
+local afkEnabled = false
 
 local function antiAfkAction()
     VirtualUser:Button2Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
     task.wait(1)
     VirtualUser:Button2Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-end
-
-local function autoClickAction()
-    VirtualUser:Button1Down(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
-    task.wait()
-    VirtualUser:Button1Up(Vector2.new(0,0), workspace.CurrentCamera.CFrame)
 end
 
 Tabs.main:AddToggle("AntiAFK_Toggle", {
@@ -51,7 +44,7 @@ Tabs.main:AddToggle("AntiAFK_Toggle", {
         afkEnabled = state
         if state then
             player.Idled:Connect(function()
-                if afkEnabled then antiAfkAction() print("✅ Anti-AFK kích hoạt do Idle.") end
+                if afkEnabled then antiAfkAction() end
             end)
             Library:Notify({ Title = "Anti AFK", Content = "✅ Đã bật chống AFK.", Duration = 4 })
         else
@@ -60,42 +53,13 @@ Tabs.main:AddToggle("AntiAFK_Toggle", {
     end
 })
 
-Tabs.main:AddSlider("AutoClick_Speed", {
-    Title = "Auto Click Speed (CPS)",
-    Description = "Chọn số click/giây",
-    Default = 10,
-    Min = 1,
-    Max = 20,
-    Rounding = 0,
-    Callback = function(value) cps = value end
-})
-
-Tabs.main:AddToggle("AutoClick_Toggle", {
-    Title = "Auto Click (chuột trái)",
-    Default = false,
-    Callback = function(state)
-        autoClickEnabled = state
-        Library:Notify({
-            Title = "Auto Click",
-            Content = state and "✅ Auto Click đã bật ("..cps.." CPS)" or "❌ Auto Click đã tắt.",
-            Duration = 4
-        })
-    end
-})
-
 task.spawn(function()
     while true do
         if afkEnabled then
             task.wait(1170)
             antiAfkAction()
-            print("🔁 Anti-AFK tự động sau 19.5 phút.")
         else
             task.wait(1)
-        end
-
-        if autoClickEnabled then
-            task.wait(1 / cps)
-            autoClickAction()
         end
     end
 end)
@@ -279,6 +243,218 @@ Tabs.esp:AddToggle("ESP_Toggle", {
                 removeESP(p)
             end
             Library:Notify({ Title = "ESP", Content = "❌ ESP đã tắt", Duration = 4 })
+        end
+    end
+})
+
+--==================================================
+-- Toggle Auto Tap (thay Auto Click)
+--==================================================
+local autoTapScriptLoaded = false
+
+Tabs.main:AddToggle("RunAutoTap_Toggle", {
+    Title = "Chạy Auto Tap",
+    Default = false,
+    Callback = function(state)
+        if state then
+            if not autoTapScriptLoaded then
+                -- --- START AUTO TAP SCRIPT ---
+                local UIS=game:GetService("UserInputService")
+                local VIE=game:GetService("VirtualInputManager")
+                local PLR=game.Players.LocalPlayer
+                local GUI=Instance.new("ScreenGui",PLR:WaitForChild("PlayerGui"))
+                GUI.ResetOnSpawn=false
+
+                local Frame=Instance.new("Frame",GUI)
+                Frame.Size=UDim2.new(0,260,0,280)
+                Frame.Position=UDim2.new(0.5,-130,0.3,-90)
+                Frame.BackgroundColor3=Color3.fromRGB(30,30,30)
+                Frame.BorderSizePixel=0
+                Frame.Active=true
+                Frame.Draggable=true
+                Instance.new("UICorner",Frame)
+
+                local UIPadding=Instance.new("UIPadding",Frame)
+                UIPadding.PaddingTop=UDim.new(0,10)
+                UIPadding.PaddingLeft=UDim.new(0,10)
+                UIPadding.PaddingRight=UDim.new(0,10)
+                local UIList=Instance.new("UIListLayout",Frame)
+                UIList.SortOrder=Enum.SortOrder.LayoutOrder
+                UIList.Padding=UDim.new(0,8)
+
+                local Title=Instance.new("TextLabel",Frame)
+                Title.Size=UDim2.new(1,0,0,25)
+                Title.BackgroundTransparency=1
+                Title.Text="Auto Tap Menu"
+                Title.TextColor3=Color3.new(1,1,1)
+                Title.Font=Enum.Font.GothamBold
+                Title.TextSize=18
+
+                local CooldownBox=Instance.new("TextBox",Frame)
+                CooldownBox.Size=UDim2.new(1,0,0,30)
+                CooldownBox.PlaceholderText="Cooldown (s)"
+                CooldownBox.Text="0.1"
+                CooldownBox.BackgroundColor3=Color3.fromRGB(50,50,50)
+                CooldownBox.TextColor3=Color3.new(1,1,1)
+                CooldownBox.ClearTextOnFocus=false
+                CooldownBox.Font=Enum.Font.Gotham
+                CooldownBox.TextSize=14
+                Instance.new("UICorner",CooldownBox)
+
+                local ChooseBtn=Instance.new("TextButton",Frame)
+                ChooseBtn.Size=UDim2.new(1,0,0,30)
+                ChooseBtn.Text="Choose Tap Position"
+                ChooseBtn.BackgroundColor3=Color3.fromRGB(60,60,60)
+                ChooseBtn.TextColor3=Color3.new(1,1,1)
+                ChooseBtn.Font=Enum.Font.Gotham
+                ChooseBtn.TextSize=14
+                Instance.new("UICorner",ChooseBtn)
+
+                local PosLabel=Instance.new("TextLabel",Frame)
+                PosLabel.Size=UDim2.new(1,0,0,20)
+                PosLabel.Text="Position: Center"
+                PosLabel.BackgroundTransparency=1
+                PosLabel.TextColor3=Color3.new(1,1,1)
+                PosLabel.Font=Enum.Font.Gotham
+                PosLabel.TextSize=12
+                PosLabel.TextXAlignment=Enum.TextXAlignment.Left
+
+                local ToggleBtn=Instance.new("TextButton",Frame)
+                ToggleBtn.Size=UDim2.new(1,0,0,35)
+                ToggleBtn.Text="AutoTap: OFF"
+                ToggleBtn.BackgroundColor3=Color3.fromRGB(100,30,30)
+                ToggleBtn.TextColor3=Color3.new(1,1,1)
+                ToggleBtn.Font=Enum.Font.GothamBold
+                ToggleBtn.TextSize=16
+                Instance.new("UICorner",ToggleBtn)
+
+                -- Variables
+                local TOG=false
+                local RUN=false
+                local selecting=false
+                local tapPos=Vector2.new(workspace.CurrentCamera.ViewportSize.X/2, workspace.CurrentCamera.ViewportSize.Y/2)
+
+                -- FOV Indicator
+                local FOV=Instance.new("Frame",GUI)
+                FOV.Size=UDim2.new(0,20,0,20)
+                FOV.AnchorPoint=Vector2.new(0.5,0.5)
+                FOV.Position=UDim2.new(0, tapPos.X, 0, tapPos.Y)
+                FOV.BackgroundTransparency=1
+                local Stroke=Instance.new("UIStroke",FOV)
+                Stroke.Thickness=1.5
+                Stroke.Transparency=0
+                Stroke.ApplyStrokeMode=Enum.ApplyStrokeMode.Border
+                Instance.new("UICorner",FOV)
+
+                local Inner1=FOV:Clone()
+                Inner1.Size=UDim2.new(0,10,0,10)
+                Inner1.Parent=FOV
+                Inner1.Position=UDim2.new(0.5,0,0.5,0)
+                Inner1:GetChildren()[1].Thickness=1
+
+                local PlusH=Instance.new("Frame",FOV)
+                PlusH.Size=UDim2.new(0,10,0,1)
+                PlusH.AnchorPoint=Vector2.new(0.5,0.5)
+                PlusH.Position=UDim2.new(0.5,0,0.5,0)
+                PlusH.BackgroundColor3=Color3.new(1,1,1)
+
+                local PlusV=Instance.new("Frame",FOV)
+                PlusV.Size=UDim2.new(0,1,0,10)
+                PlusV.AnchorPoint=Vector2.new(0.5,0.5)
+                PlusV.Position=UDim2.new(0.5,0,0.5,0)
+                PlusV.BackgroundColor3=Color3.new(1,1,1)
+
+                -- RGB Cycle
+                task.spawn(function()
+                    local h=0
+                    while true do
+                        h=(h+0.01)%1
+                        local col=Color3.fromHSV(h,1,1)
+                        Stroke.Color=col
+                        Inner1:GetChildren()[1].Color=col
+                        PlusH.BackgroundColor3=col
+                        PlusV.BackgroundColor3=col
+                        task.wait(0.05)
+                    end
+                end)
+
+                -- Tap Logic
+                local function updateLabel()
+                    PosLabel.Text="Position: ("..math.floor(tapPos.X)..", "..math.floor(tapPos.Y)..")"
+                end
+
+                local function stop()
+                    TOG=false
+                    RUN=false
+                    ToggleBtn.Text="AutoTap: OFF"
+                    ToggleBtn.BackgroundColor3=Color3.fromRGB(100,30,30)
+                end
+
+                local function startLoop()
+                    RUN=true
+                    coroutine.wrap(function()
+                        while RUN and TOG do
+                            local x,y=tapPos.X,tapPos.Y+50
+                            FOV.Position=UDim2.new(0, tapPos.X, 0, tapPos.Y)
+                            VIE:SendMouseButtonEvent(x,y,0,true,game,false)
+                            VIE:SendMouseButtonEvent(x,y,0,false,game,false)
+                            local cd=tonumber(CooldownBox.Text) or 0.1
+                            task.wait(math.clamp(cd,0.05,5))
+                        end
+                    end)()
+                end
+
+                ChooseBtn.MouseButton1Click:Connect(function()
+                    if not selecting then
+                        selecting=true
+                        ChooseBtn.Text="Click anywhere..."
+                    end
+                end)
+
+                UIS.InputBegan:Connect(function(input,gp)
+                    if selecting and (input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch) then
+                        tapPos=input.Position
+                        updateLabel()
+                        ChooseBtn.Text="Choose Tap Position"
+                        selecting=false
+                    end
+                end)
+
+                ToggleBtn.MouseButton1Click:Connect(function()
+                    TOG=not TOG
+                    if TOG then
+                        ToggleBtn.Text="AutoTap: ON"
+                        ToggleBtn.BackgroundColor3=Color3.fromRGB(30,100,30)
+                        startLoop()
+                    else
+                        stop()
+                    end
+                end)
+
+                local function monitorDeath()
+                    local char=PLR.Character or PLR.CharacterAdded:Wait()
+                    local hum=char:WaitForChild("Humanoid")
+                    hum.Died:Connect(stop)
+                end
+
+                monitorDeath()
+                PLR.CharacterAdded:Connect(monitorDeath)
+                updateLabel()
+
+                autoTapScriptLoaded = true
+            end
+
+            Library:Notify({
+                Title = "Auto Tap",
+                Content = "✅ Script Auto Tap đã tải và sẵn sàng",
+                Duration = 4
+            })
+        else
+            Library:Notify({
+                Title = "Auto Tap",
+                Content = "❌ Script Auto Tap toggle tắt",
+                Duration = 4
+            })
         end
     end
 })
